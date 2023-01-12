@@ -1,0 +1,188 @@
+test ? (jump & dependency)
+main:
+  addi	x1, zero, 1				PC: 0
+  addi	x2, zero, -1			PC: 4
+  addi	x3, zero, 3				PC: 8
+  addi	x4, zero, 7				PC: C
+  addi	x5, zero, 14			PC: 10
+  addi	x6, zero, 28			PC: 14
+  addi	x7, zero, 56			PC: 18
+  addi	x8, zero, 133			PC: 1C
+  addi	x9, zero, 258			PC: 20
+  addi	x10, x1, -231			PC: 24				x10 = -230
+  add	x11, x5, x6				PC: 28				x11 = 42
+  addi  x12, x11, 10			PC: 2C				x12 = 52	
+  jalr  x11, x12, 8				PC: 30				x11 = 30+4 = 34, jump 2 instr (PC: 0x3C = 60)
+  addi	x13, x4, 1				PC: 34
+  addi	x14, x3, -1				PC: 38
+  addi	x15, zero, 72			PC: 3C
+  addi	x16, x15, 30			PC: 40
+  jalr  x17, x15, 4				PC: 44				x11 = 44+4 = 48, jump 1 instr (PC: 0x4C = 72)
+  addi	x5, x3, 14				PC: 48
+  addi	x6, x3, 28				PC: 4C
+  addi	x18, zero, 150			PC: 50
+
+
+
+
+test C (branch predictor)
+main:
+  addi	x1, zero, 1				PC: 0
+  addi	x2, zero, 2				PC: 4
+  addi	x3, zero, 3				PC: 8
+  addi	x4, zero, 7				PC: C
+  addi	x5, zero, 14			PC: 10
+  addi	x11, zero, 1			PC: 14
+  addi	x12, zero, 2			PC: 18
+  addi	x13, zero, 3			PC: 1C
+  addi	x14, zero, 7			PC: 20
+  addi	x15, zero, 14			PC: 24
+  addi	x21, zero, 1			PC: 28
+  addi	x22, zero, 2			PC: 2C
+  addi	x23, zero, 3			PC: 30
+  addi	x24, zero, 7			PC: 34
+  addi	x25, zero, 14			PC: 38
+.L1:
+  bne x3, x2,.L2				PC: 3C
+  add x29, x0, x1				PC: 40
+.L2:
+  beq x14, x25,.L4				PC: 44
+  add x26, x12, x15				PC: 48
+  sub x27, x25, x23				PC: 4C
+  beq x13, x1,.L1				PC: 50
+.L3:
+  sub x13, x13, x11				PC: 54
+  bne x15, x5,.L2				PC: 58
+.L4:
+  sub x5, x15, x24				PC: 5C
+  add x4, x14, x24				PC: 60
+  beq x1, x11,.L3				PC: 64
+
+L1 to L2
+L2 in seq
+L3 in seq
+L4 to L3
+L3 to L2
+L2 to L1
+
+
+
+
+test D (Load & Store & load branch dependency)
+main:
+  addi	x3, zero, 12			PC: 0
+  addi	x4, zero, 4				PC: 4
+  addi	x5, zero, 5				PC: 8
+  sw	x4, 8(x3)				PC: C			store 4
+  sw	x5, 12(x3)				PC: 10			store 5
+  lw	x19, 8(x3)				PC: 14
+  beq	x19, x4,.L1				PC: 18			predict taken, branch taken (correct)
+  addi	x1, zero, 66			PC: 1C
+  addi	x2, zero, 23			PC: 20
+.L1:
+  lw	x20, 12(x3)				PC: 24
+  beq	x3, x20,.L2				PC: 28			predict taken, branch not taken (wrong)
+  addi	x1, zero, 92			PC: 2C
+  addi	x2, zero, 77			PC: 30
+.L2:
+  addi	x1, zero, 100			PC: 34
+  addi	x2, zero, 200			PC: 38	
+
+
+
+
+test E (jump stall remove)
+main:
+  addi	x1, zero, 1				PC: 0
+  addi	x2, zero, 3				PC: 4
+  addi	x3, zero, 3				PC: 8
+  addi	x4, zero, 7				PC: C
+  addi	x5, zero, 14			PC: 10
+.L1:
+  addi	x6, zero, 7				PC: 14
+  addi	x7, zero, 56			PC: 18
+  addi	x8, zero, 133			PC: 1C
+  addi	x9, zero, 258			PC: 20
+  jalr  x11, x1, 51				PC: 24				x11 = 24+4 = 28, jump 3 instr (PC: 0x34 = 52)
+  beq	x2, x3,.L1				PC: 28				branch taken but should not execute
+  addi	x13, x4, 1				PC: 2C			
+  addi	x14, x3, -1				PC: 30
+  addi	x15, zero, 72			PC: 34
+  addi	x16, zero, 30			PC: 38
+.L2:
+  jalr  x17, x1, 67				PC: 3C				x11 = 3C+4 = 40, jump 1 instr (PC: 0x44 = 68)
+  addi	x5, x3, 14				PC: 40
+  addi	x6, x3, 28				PC: 44
+  addi	x18, zero, 150			PC: 48
+  jal	x19, 12					PC: 4C				x19 = 4C+4 = 50, jump 2 instr (PC: 0x58)
+  bne	x2, x4,.L2				PC: 50				branch taken but should not execute
+  addi	x20, zero, 10			PC: 54
+  addi	x21, zero, 60			PC: 58
+  addi	x22, zero, 95			PC: 5C
+  
+  
+  
+test F (Load Store extend)
+main:
+  addi	x1, zero, 4				PC: 0
+  addi	x2, zero, 8				PC: 4
+  addi	x3, zero, 12			PC: 8
+  addi	x4, zero, 16			PC: C
+  addi	x5, zero, 20			PC: 10
+  addi	x6, zero, -1024			PC: 14
+  addi	x7, zero, 255			PC: 18
+  addi	x8, zero, 15			PC: 1C
+  addi	x9, zero, -5			PC: 20
+  addi	x10, zero, 21			PC: 24
+  addi	x11, zero, 231			PC: 28
+  sw	x4, 4(x4)				PC: 2C			store 4
+  sw	x5, 4(x5)				PC: 30			store 5
+  sw	x7, 0(x4)				PC: 34			store 0000 0000 0000 0000 0000 0000 1111 1111 = 255
+  sw	x6, 0(x1)				PC: 38			store 1111 1111 1111 1111 1111 1100 0000 0000 = -1024
+  sh	x6, 0(x2)				PC: 3C			store 1111 1111 1111 1111 1111 1100 0000 0000 = -1024
+  sb	x6, 0(x3)				PC: 40			store 0000 0000 0000 0000 0000 0000 0000 0000 = 0
+  lw	x12, 0(x1)				PC: 44			load 1111 1111 1111 1111 1111 1100 0000 0000 = -1024
+  lw	x13, 0(x2)				PC: 48			load 1111 1111 1111 1111 1111 1100 0000 0000 = -1024
+  lw	x14, 0(x3)				PC: 4C			load 0000 0000 0000 0000 0000 0000 0000 0000 = 0
+  lh	x15, 0(x2)				PC: 50			load 1111 1111 1111 1111 1111 1100 0000 0000 = -1024
+  lhu	x16, 0(x2)				PC: 54			load 0000 0000 0000 0000 1111 1100 0000 0000 = 64512
+  lb	x17, 0(x4)				PC: 58			load 1111 1111 1111 1111 1111 1111 1111 1111 = -1
+  lbu	x18, 0(x4)				PC: 5C			load 0000 0000 0000 0000 0000 0000 1111 1111 = 255
+  
+  
+  
+  
+test G (speed test, data dependency + branch + jump)
+main:
+  addi	x1, zero, 1			PC: 0
+  addi	x5, zero, 100		PC: 4		
+  bge	x8, x5,.L1			PC: 8
+  add	x2, x2, x1			PC: C
+  add	x3, x2, x1			PC: 10
+  add	x10, x2, x3			PC: 14
+  addi	x8, x8, 1			PC: 18
+  jal	x4, -20				PC: 1C
+.L1:
+  sw	x1, 0(x7)			PC: 20
+
+
+
+test H (speed test, no data dependency, branch + jump)
+main:
+  addi	x1, zero, 1			PC: 0
+  addi	x5, zero, 100		PC: 4
+  addi	x8, zero, 2			PC: 8
+  addi	x9, zero, 3			PC: C
+  addi	x10, zero, 4		PC: 10
+  addi	x11, zero, 5		PC: 14
+  addi	x12, zero, 6		PC: 18
+  bge	x2, x5,.L1			PC: 1C
+  add	x2, x2, x1			PC: 20
+  add	x3, x3, x8			PC: 24
+  add	x13, x13, x10		PC: 28
+  add	x14, x14, x11		PC: 2C
+  add	x15, x15, x12		PC: 30
+  addi	x16, x16, 7			PC: 34
+  jal	x17, -28			PC: 38
+.L1:
+  sw	x1, 0(x20)			PC: 3C
